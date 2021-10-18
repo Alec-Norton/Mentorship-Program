@@ -1,0 +1,176 @@
+/*
+ * buttonBreakStrobe.c
+ *
+ * Created: 12/3/2020 3:18:40 PM
+ * Author : alecr
+ */ 
+
+#include <avr/io.h>
+#include <util/delay.h>
+
+uint8_t redButtonPush (void){
+	if((PIND & (1<<PORTD3)) == 0){        	//Verify that the value is the same that what was read
+	return 1; }            			//If it is still 0 its because we had a button press
+	else{                    			//If the value is different the press is invalid
+	return 0; }
+}
+uint8_t greenButtonPush (void){
+	if((PIND & (1<<PORTD2)) == 0){        	//Verify that the value is the same that what was read
+	return 1; }            			//If it is still 0 its because we had a button press
+	else{                    			//If the value is different the press is invalid
+	return 0; }
+}
+uint8_t yellowButtonPush (void){
+	if((PINB & (1<<PORTB2)) == 0){        	//Verify that the value is the same that what was read
+	return 1; }            			//If it is still 0 its because we had a button press
+	else{                    			//If the value is different the press is invalid
+	return 0; }
+}
+
+void pwm_init()
+{
+	// initialize timer0 in PWM mode
+	TCCR0A |= (1<<WGM00)|(1<<COM0A1)|(1<<COM0B1)|(1<<WGM01); //set OC0A and OC0B on compare match, clear at bottom, set Fast PWM
+	TCCR0B |= (1<<CS02); //set prescalar to 256
+	
+	TCCR2A |= (1<<WGM20)|(1<<COM2A1)|(1<<COM2B1)|(1<<WGM21); //set OC0A and OC0B on compare match, clear at bottom, set Fast PWM
+	TCCR2B |= (1<<CS22); //set prescalar to 256
+	
+	// make sure to make OC0 pin (pin PB3 for atmega32) as output pin
+	DDRB |= (1<<DDRB3); //Red Output - > OC0B
+	DDRB |= (1<<DDRB4); //Green Output - > OC0A
+	DDRD |= (1<<DDRD7); //Blue Output - > OC2A
+}
+
+
+int main(void)
+{
+	uint8_t yellow = 0;
+	uint8_t red = 0;
+	uint8_t green = 0;
+	
+	DDRD &= ~ (1<<DDRD2);		//Configure PORTD 0 pin  as input
+	PORTD |= (1<<PORTD2);		//Activate pull-ups in PORTD pin 0
+	DDRD &= ~(1<<DDRD3);		//Configure PORTD 1 pin  as input
+	PORTD |= (1<<PORTD3);		//Activate pull-ups in PORTD pin 1
+	DDRB &= ~(1<<DDRB2);		//Configure PORTD 2 pin  as input
+	PORTB |= (1<<PORTB2);		//Activate pull-ups in PORTD pin 2
+	
+	pwm_init();
+	
+    /* Replace with your application code */
+    while (1) 
+    {
+		if(yellowButtonPush() == 1){
+			yellow = 1;
+		}
+		if(redButtonPush() == 1){
+			red = 1;
+		}
+		if(greenButtonPush() == 1){
+			green = 1;
+		}
+		//yellow/blue strobe
+		if(yellow == 1){
+			OCR0A = 0;
+			OCR0B = 0;
+			//yellow = 0;
+			for(uint8_t i = 0; i < 255; i++){
+				if(redButtonPush() == 1){
+					red = 1;
+					yellow = 0;
+					break;
+				}
+				if(greenButtonPush() == 1){
+					green = 1;
+					yellow = 0;
+					break;
+				}
+				OCR2A = i;
+				_delay_ms(10);
+			}
+			for(uint8_t i = 255; i > 0; i--){
+				if(redButtonPush() == 1){
+					red = 1;
+					yellow = 0;
+					break;
+				}
+				if(greenButtonPush() == 1){
+					green = 1;
+					yellow = 0;
+					break;
+				}
+				OCR2A = i;
+				_delay_ms(10);
+			}
+		}
+		//red strobe
+		if(red == 1){
+			OCR0B = 0;
+			OCR2A = 0;
+			//red = 0;
+			for(uint8_t i = 0; i < 255; i++){
+				if(yellowButtonPush() == 1){
+					yellow = 1;
+					red = 0;
+					break;
+				}
+				if(greenButtonPush() == 1){
+					green = 1;
+					red = 0;
+					break;
+				}
+				OCR0A = i;
+				_delay_ms(10);
+			}
+			for(uint8_t i = 255; i > 0; i--){
+				if(yellowButtonPush() == 1){
+					yellow = 1;
+					red = 0;
+					break;
+				}
+				if(greenButtonPush() == 1){
+					green = 1;
+					red = 0;
+					break;
+				}
+				OCR0A = i;
+				_delay_ms(10);
+			}
+		}
+		if(green == 1){
+			OCR0A = 0;
+			OCR2A = 0;
+			//green = 0;
+			for(uint8_t i = 0; i < 255; i++){
+				if(yellowButtonPush() == 1){
+					yellow = 1;
+					green = 0;
+					break;
+				}
+				if(redButtonPush() == 1){
+					red = 1;
+					green = 0;
+					break;
+				}
+				OCR0B = i;
+				_delay_ms(10);
+			}
+			for(uint8_t i = 255; i > 0; i--){
+				if(yellowButtonPush() == 1){
+					yellow = 1;
+					green = 0;
+					break;
+				}
+				if(redButtonPush() == 1){
+					red = 1;
+					green = 0;
+					break;
+				}
+				OCR0B = i;
+				_delay_ms(10);
+			}
+		}
+	}
+}
+
